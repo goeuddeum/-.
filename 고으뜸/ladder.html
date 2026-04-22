@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>시퀸스 시뮬레이터</title>
+<style>
+  body {
+    background: #eee;
+    text-align: center;
+    font-family: sans-serif;
+  }
+  h2 { margin-top: 30px; }
+
+  .board {
+    position: relative;
+    width: 400px;
+    height: 420px;
+    margin: 40px auto;
+    background: white;
+    border: 2px solid #333;
+    cursor: pointer;
+  }
+
+  .lamp {
+    position: absolute;
+    left: 57px;
+    top: 245px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 3px solid #222;
+    background: white;
+    transition: background 0.3s, box-shadow 0.3s;
+    pointer-events: none;
+  }
+  .lamp.on {
+    background: yellow;
+    box-shadow: 0 0 18px 6px rgba(255,220,0,0.8);
+  }
+
+  .status {
+    font-size: 1rem;
+    margin-top: 10px;
+    color: #555;
+  }
+  .status.on { color: orange; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h2>래더 회로 시뮬레이터</h2>
+
+<div class="board" onclick="toggle()">
+  <svg style="position:absolute;left:0;top:0;"
+       width="400" height="420" id="swSvg">
+
+    <!-- 상단 버스 -->
+    <line x1="0" y1="50" x2="400" y2="50" stroke="#222" stroke-width="3"/>
+    <!-- 하단 버스 -->
+    <line x1="0" y1="370" x2="400" y2="370" stroke="#222" stroke-width="3"/>
+
+    <!-- 왼쪽 수직선: 상단버스 → 상단 원 위 -->
+    <line x1="82" y1="50" x2="82" y2="98" stroke="#222" stroke-width="3"/>
+
+    <!-- 상단 고정 접점 원 -->
+    <circle id="topCircle" cx="82" cy="110" r="12"
+            fill="white" stroke="#222" stroke-width="3"/>
+
+    <!-- 두 원 사이: 빈 공간 (선 없음) -->
+
+    <!-- 하단 가동 접점 원 -->
+    <circle id="movCircle" cx="82" cy="170" r="12"
+            fill="white" stroke="#222" stroke-width="3"/>
+
+    <!-- 하단 원 → 램프 -->
+    <line x1="82" y1="182" x2="82" y2="245" stroke="#222" stroke-width="3"/>
+    <!-- 램프 아래 → 하단 버스 -->
+    <line x1="82" y1="295" x2="82" y2="370" stroke="#222" stroke-width="3"/>
+
+    <!--
+      ㅏ 암:
+      - OFF 상태: x 오프셋 +40 (원에서 오른쪽으로 이격)
+      - ON  상태: x 오프셋  0  (원에 딱 붙음)
+      - 세로선: 두 원의 중간 y범위 (y=122 ~ y=158)
+      - 가로선: 세로선 중간(y=140)에서 오른쪽으로 40px
+    -->
+    <g id="arm">
+      <!-- ㅏ 세로 -->
+      <line id="armV" x1="122" y1="122" x2="122" y2="158" stroke="#222" stroke-width="3"/>
+      <!-- ㅏ 가로 (오른쪽으로) -->
+      <line id="armH" x1="122" y1="140" x2="147" y2="140" stroke="#222" stroke-width="3"/>
+    </g>
+
+  </svg>
+
+  <div class="lamp" id="lamp"></div>
+</div>
+
+<div class="status" id="status">● 회로 개방 (OFF)</div>
+<p style="color:#999;font-size:0.85rem;">클릭하면 스위치 작동</p>
+
+<script>
+  let on = false;
+  let animId = null;
+
+  // OFF: armV x = 122 (원 오른쪽으로 40px 이격, 원 cx=82, 원 오른쪽끝=94, 이격=28)
+  // ON : armV x = 94  (원 오른쪽 끝에 딱 붙음)
+  const OFF_X = 122;
+  const ON_X  = 94;   // 원 cx=82, r=12 → 오른쪽 끝 x=94
+
+  let currentX = OFF_X;
+
+  function setArm(x) {
+    const dx = x - OFF_X; // 이동량
+    document.getElementById('armV').setAttribute('x1', x);
+    document.getElementById('armV').setAttribute('x2', x);
+    document.getElementById('armH').setAttribute('x1', x);
+    document.getElementById('armH').setAttribute('x2', x + 25);
+  }
+
+  function toggle() {
+    on = !on;
+    if (animId) cancelAnimationFrame(animId);
+
+    const startX   = currentX;
+    const endX     = on ? ON_X : OFF_X;
+    const duration = 250;
+    const startTime = performance.now();
+
+    function animate(now) {
+      const t = Math.min((now - startTime) / duration, 1);
+      const ease = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+      currentX = startX + (endX - startX) * ease;
+      setArm(currentX);
+
+      if (t < 1) {
+        animId = requestAnimationFrame(animate);
+      } else {
+        currentX = endX;
+        // 접점 색
+        document.getElementById('topCircle').setAttribute('fill', on ? '#ffdd00' : 'white');
+        document.getElementById('movCircle').setAttribute('fill', on ? '#ffdd00' : 'white');
+      }
+    }
+    animId = requestAnimationFrame(animate);
+
+    document.getElementById('lamp').classList.toggle('on', on);
+    const status = document.getElementById('status');
+    status.textContent = on ? '⚡ 회로 연결 (ON)' : '● 회로 개방 (OFF)';
+    status.className = 'status' + (on ? ' on' : '');
+  }
+</script>
+
+</body>
+</html>
